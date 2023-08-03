@@ -1,0 +1,31 @@
+# Flask Framework
+Flask == 2.2.2
+
+# Flask Packages
+Flask-Cors == 3.0.10
+Flask-Script == 2.0.6
+Flask-SQLAlchemy == 3.0.2
+
+# MSSQL
+pyodbc == 4.0.35
+
+# Postgres 
+psycopg2-binary == 2.9.5
+
+# Redis
+redis == 4.4.0
+celery == 5.2.7
+dnspython == 2.2.1
+flower == 1.2.0
+eventlet == 0.33.2
+
+# OpenCV
+
+
+# Tesseract
+pytesseract == 0.3.10
+
+# PDF
+pdf2jpg == 1.1
+
+django-environ == 0.9.0

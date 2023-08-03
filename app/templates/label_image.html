@@ -1,0 +1,684 @@
+{% extends "layout.html" %} {% block content %}
+
+<div class="row p-3">
+  <div class="text-dark">
+    <h3 class="font-weight-bold">
+      <a href="#" onclick="history.back()" class="font-weight-bold link-dark"><i class="fa fa-arrow-circle-o-left" aria-hidden="true"></i></a> {{image_name}} / Label Image
+    </h3>
+  </div>
+</div>
+
+<div class="text-center p-3">
+  <canvas id="canvas"></canvas>
+</div>
+
+<div class="text-center">
+  <button id="draw-button" type="button" class="btn btn-outline-secondary">
+    <i class="fa fa-pencil-square-o"></i>
+  </button>
+  <button id="pointer-button" type="button" class="btn btn-secondary">
+    <i class="fas fa-arrows-alt"></i>
+  </button>
+  <button id="return-button" type="button" class="btn btn-secondary">
+    <i class="fa fa-reply" aria-hidden="true"></i>
+  </button>
+  <button id="save-button" type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#Modal">
+    <i class="fa fa-floppy-o" aria-hidden="true"></i>
+  </button>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="Modal" tabindex="-1" aria-labelledby="ModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="ModalLabel">Save and leave?</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button id="modal-save-button" type="button" class="btn btn-primary">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="cards" class="row row-cols-1 row-cols-md-2 row-cols-lg-4 text-center p-3"></div>
+
+<style>
+  canvas {
+    /* border: 1px solid #000; */
+    padding: 0;
+    margin: auto;
+  }
+
+  .focus {
+    border-left: 5px red solid;
+  }
+
+  #message-alert {
+    display: none;
+  }
+</style>
+
+<script type="application/javascript" data-type="module">
+  var connection = window.location.protocol + "//" + location.host;
+
+  var canvas = document.getElementById("canvas");
+  var ctx = canvas.getContext("2d");
+  // canvas.width = 1920;
+  // canvas.height = 1080;
+  var cw = canvas.width;
+  var ch = canvas.height;
+  // var cw, ch;
+
+  var labels = [];
+
+  var imgBase64, imgRatio = 16 / 9;
+
+
+  // Canvas Style
+  // canvas.style.background = `url('${imgBase64}')`;
+  // canvas.style.backgroundSize = "auto 100%";
+
+  window.onload = (event) => {
+
+    fetch(connection + "/api/new_label_data/{{stage}}/{{image_id}}")
+      .then((res) => res.json())
+      .then(
+        (result) => {
+          console.log(result);
+          imgBase64 = `data:image/peng;base64,${result.img}`;
+          labels = result.labels;
+          result.labels_data.forEach((data)=>{
+            const x = Math.round( (data.x_scale-data.w_scale/2)*canvas.width );
+            const y = Math.round( (data.y_scale-data.h_scale/2)*canvas.height );
+            const width = Math.round( data.w_scale*canvas.width );
+            const height = Math.round( data.h_scale*canvas.height );
+            handleAddRectangle(event, x, y, width, height, data.label_class);
+          })
+          reLoadImage();
+          // Canvas Style
+          canvas.style.background = `url('${imgBase64}')`;
+          canvas.style.backgroundSize = "auto 100%";
+        },
+        (error) => {
+          console.log("get data error");
+        }
+      );
+  };
+
+  function setCanvasSize(width = cw, height = ch) {
+
+    var ww = window.innerWidth;
+    var wh = window.innerHeight;
+    var newWidth = Math.round(
+      wh * imgRatio < ww * 0.9 ? wh * imgRatio : ww * 0.9
+    );
+    var newHeight = Math.round(newWidth * (1 / imgRatio));
+
+    var w_ratio = newWidth / cw;
+    var h_ratio = newHeight / ch;
+    if (w_ratio != 1 || h_ratio != 1) {
+      Object.entries(shapes).forEach(([id, shape]) => {
+        shape.x *= w_ratio;
+        shape.y *= h_ratio;
+
+        switch (shape.graph) {
+          case "circle":
+            shape.radius *= w_ratio;
+            break;
+          case "rect":
+            shape.width *= w_ratio;
+            shape.height *= h_ratio;
+            break;
+          default:
+            console.log(shape);
+        }
+      });
+
+      canvas.width = newWidth;
+      canvas.height = newHeight;
+      cw = canvas.width;
+      ch = canvas.height;
+      reOffset();
+      drawAll();
+    }
+  }
+
+  // used to calc canvas position relative to window
+  var offsetX, offsetY;
+  function reOffset() {
+    var BB = canvas.getBoundingClientRect();
+    offsetX = BB.left;
+    offsetY = BB.top;
+  }
+
+  // reOffset();
+  window.onscroll = function (e) {
+    reOffset();
+  };
+  window.onresize = function (e) {
+    setCanvasSize(e.target.innerWidth, e.target.innerHeight);
+    // reOffset();
+  };
+  canvas.onresize = function (e) {
+    reOffset();
+  };
+
+  function reLoadImage() {
+    const img = new Image();
+    img.src = imgBase64;
+    img.onload = () => {
+      imgRatio = img.width / img.height;
+      setCanvasSize(img.width, img.height);
+    };
+  }
+
+  // 滑鼠事件
+  canvas.onmousedown = handleMouseDown;
+  canvas.onmousemove = handleMouseMove;
+  canvas.onmouseup = handleMouseUp;
+  canvas.onmouseout = handleMouseOut;
+
+  // 拖移的變數
+  var isDragging = false;
+  var startX, startY;
+
+  // 存放圖形、圖片 的陣列
+  var shapes = {};
+  // 置入 shapes 一個藍色圓形的物件
+  // shapes.push({ x: 30, y: 30, radius: 15, graph: 'circle', type: 'stroke', color: 'blue' });
+  // 置入 shapes 一個紅色矩形的物件
+  // shapes.push({ x: 100, y: 100, width: 75, height: 35, graph: 'rect', type: 'stroke', color: 'red' });
+
+  // 當移動圖形時記錄的變數
+  var selectedShapeId;
+
+  // 把陣列的物件畫到 canvas
+  drawAll();
+  function drawAll() {
+    ctx.clearRect(0, 0, cw, ch);
+    ctx.beginPath();
+    Object.entries(shapes).forEach(([id, shape]) => {
+      switch (shape.graph) {
+        case "circle":
+          ctx.arc(shape.x, shape.y, shape.radius, 0, Math.PI * 2);
+          if (shape.type == "stroke") {
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = shape.color;
+            ctx.stroke();
+          } else {
+            ctx.fillStyle = shape.color;
+            ctx.fill();
+          }
+          break;
+        case "rect":
+          if (shape.selected) {
+            ctx.fillStyle = "rgba(0,0,0,0.3)";
+            ctx.fillRect(shape.x, shape.y, shape.width, shape.height);
+          }
+
+          if (shape.type == "stroke") {
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = shape.color;
+            ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
+          } else {
+            ctx.fillStyle = shape.color;
+            ctx.fillRect(shape.x, shape.y, shape.width, shape.height);
+          }
+          break;
+        default:
+          console.log(shape);
+      }
+    });
+  }
+
+  // 判斷滑鼠是否在範圍
+  function isMouseInShape(mx, my, shape) {
+    switch (shape.graph) {
+      case "circle":
+        // 圓形範圍
+        var dx = mx - shape.x;
+        var dy = my - shape.y;
+        if (dx * dx + dy * dy < shape.radius * shape.radius) {
+          return true;
+        }
+        break;
+      case "rect":
+        // 矩形範圍
+        var rLeft = Math.min(shape.x, shape.x + shape.width);
+        var rRight = Math.max(shape.x, shape.x + shape.width);
+        var rTop = Math.min(shape.y, shape.y + shape.height);
+        var rBott = Math.max(shape.y, shape.y + shape.height);
+        if (mx > rLeft && mx < rRight && my > rTop && my < rBott) {
+          return true;
+        }
+        break;
+      case "image":
+        // 圖片範圍和矩形範圍相同，所以一起使用時要區分使用的變數
+        var rLeft = shape.x;
+        var rRight = shape.x + shape.imgWidth;
+        var rTop = shape.y;
+        var rBott = shape.y + shape.imgHeight;
+        // 判斷滑鼠是否在範圍內
+        if (mx > rLeft && mx < rRight && my > rTop && my < rBott) {
+          return true;
+        }
+        break;
+      case "text":
+        // 文字範圍
+        var rLeft = shape.x;
+        var rRight = shape.x + ctx.measureText(shape.text).width;
+        var rTop = shape.y;
+        var rBott = shape.y + shape.fontSize;
+        // 判斷滑鼠是否在範圍內
+        if (mx > rLeft && mx < rRight && my > rTop && my < rBott) {
+          return true;
+        }
+        break;
+    }
+    return false;
+  }
+
+  // 判斷滑鼠是否在框線上
+  function isMouseOnBorder(mx, my, shape) {
+    switch (shape.graph) {
+      case "circle":
+        // 圓形範圍
+        var dx = mx - shape.x;
+        var dy = my - shape.y;
+        if (dx * dx + dy * dy < shape.radius * shape.radius) {
+          return true;
+        }
+        break;
+      case "rect":
+        // 矩形範圍
+        var range = 2;
+        var rLeft = Math.min(shape.x, shape.x + shape.width);
+        var rRight = Math.max(shape.x, shape.x + shape.width);
+        var rTop = Math.min(shape.y, shape.y + shape.height);
+        var rBott = Math.max(shape.y, shape.y + shape.height);
+        var leftRange = [rLeft - 2, rLeft + 2];
+        var rightRange = [rRight - 2, rRight + 2];
+        var topRange = [rTop - 2, rTop + 2];
+        var bottRange = [rBott - 2, rBott + 2];
+
+        var ew_resize, ns_resize;
+
+        if (
+          mx > leftRange[0] &&
+          mx < rightRange[1] &&
+          my > topRange[0] &&
+          my < bottRange[1]
+        ) {
+          if (mx > leftRange[0] && mx < leftRange[1]) {
+            ew_resize = "left";
+          } else if (mx > rightRange[0] && mx < rightRange[1]) {
+            ew_resize = "right";
+          } else {
+            ew_resize = false;
+          }
+
+          if (my > topRange[0] && my < topRange[1]) {
+            ns_resize = "top";
+          } else if (my > bottRange[0] && my < bottRange[1]) {
+            ns_resize = "bott";
+          } else {
+            ns_resize = false;
+          }
+        }
+
+        if (
+          (ew_resize == "left" && ns_resize == "top") ||
+          (ew_resize == "right" && ns_resize == "bott")
+        ) {
+          return ["nwse-resize", ew_resize, ns_resize];
+        } else if (
+          (ew_resize == "right" && ns_resize == "top") ||
+          (ew_resize == "left" && ns_resize == "bott")
+        ) {
+          return ["nesw-resize", ew_resize, ns_resize];
+        } else if (ew_resize == "left" || ew_resize == "right") {
+          return ["ew-resize", ew_resize, ns_resize];
+        } else if (ns_resize == "top" || ns_resize == "bott") {
+          return ["ns-resize", ew_resize, ns_resize];
+        } else {
+          return [false, ew_resize, ns_resize];
+        }
+        break;
+    }
+    return false;
+  }
+
+  // 點擊時修改 isDragging 成可移動，計算點擊時滑鼠的位置
+  function handleMouseDown(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    // 滑鼠位置
+    startX = parseInt(e.clientX - offsetX);
+    startY = parseInt(e.clientY - offsetY);
+    if (isDrawing) {
+      handleAddRectangle(e, startX, startY, 0, 0, 0);
+      isDragging = true;
+    } else {
+      unSelectShape();
+      for (var [id, shape] of Object.entries(shapes)) {
+        if (isMouseInShape(startX, startY, shapes[id])) {
+          selectedShapeId = id;
+          // shapes[id].selected = true;
+          // document.getElementById(`card_${id}`).classList.add('focus');
+          selectRectangle(id);
+          isDragging = true;
+          drawAll();
+          break;
+        }
+      }
+    }
+  }
+
+  // 移動時修改位置
+  function handleMouseMove(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    // 滑鼠位置
+    var mouseX = parseInt(e.clientX - offsetX);
+    var mouseY = parseInt(e.clientY - offsetY);
+    // 滑鼠移動後和原本位置的距離
+    var dx = mouseX - startX;
+    var dy = mouseY - startY;
+
+    if (isDrawing) {
+      $(this).css("cursor", "crosshair");
+
+      if (!isDragging) {
+        return;
+      }
+
+      var shapesArray = Object.entries(shapes);
+      var [selectedId, selectedShape] = shapesArray.pop();
+      selectedShape.width += dx;
+      selectedShape.height += dy;
+      shapes[selectedId] = selectedShape;
+    } else {
+      $(this).css("cursor", "auto");
+      for (var [id, value] of Object.entries(shapes)) {
+        if (isMouseInShape(mouseX, mouseY, shapes[id])) {
+          $(this).css("cursor", "move");
+          break;
+        }
+      }
+
+      if (!isDragging) {
+        return;
+      }
+
+      var selectedShape = shapes[selectedShapeId];
+      // 移動圖形時修改值
+      selectedShape.x += dx;
+      selectedShape.y += dy;
+    }
+
+    drawAll();
+    // update the starting drag position (== the current mouse position)
+    startX = mouseX;
+    startY = mouseY;
+  }
+
+  function handleMouseUp(e) {
+    if (!isDragging) {
+      return;
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+    isDragging = false;
+
+    if (!isDrawing) {
+      return;
+    }
+
+    var shapesArray = Object.entries(shapes);
+    if (shapesArray.length > 0) {
+      var [id, shape] = shapesArray.pop();
+      if (Math.abs(shape.width) < 5 || Math.abs(shape.height) < 5) {
+        removeRectangle(id);
+      } else {
+        createCard(id, shape);
+      }
+    }
+  }
+
+  function handleMouseOut(e) {
+    if (!isDragging) {
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    isDragging = false;
+
+    if (!isDrawing) {
+      return;
+    }
+
+    var shapesArray = Object.entries(shapes);
+    if (shapesArray.length > 0) {
+      var [id, shape] = shapesArray.pop();
+      if (Math.abs(shape.width) < 5 || Math.abs(shape.height) < 5) {
+        removeRectangle(id);
+      } else {
+        createCard(id, shape);
+      }
+    }
+  }
+
+  function unSelectShape() {
+    Object.entries(shapes).forEach(([id, shape]) => {
+      shape.selected = false;
+      document.getElementById(`card_${id}`).classList.remove("focus");
+    });
+    drawAll();
+  }
+
+  var drawButton = document.getElementById("draw-button");
+  var pointerButton = document.getElementById("pointer-button");
+  var returnButton = document.getElementById("return-button");
+  var saveButton = document.getElementById("modal-save-button");
+
+  var isDrawing = true;
+  drawButton.addEventListener("click", handleDraw);
+  pointerButton.addEventListener("click", handlePointer);
+  returnButton.addEventListener("click", handleReplyRectangle);
+  saveButton.addEventListener("click", handleSaveLabelData);
+
+  const container_cards = document.getElementById("cards");
+
+  function handleAddRectangle(e, x = 200, y = 50, width = 75, height = 35, label_class = 0) {
+    var randomColor = createRandomColor();
+    var newShape = {
+      x: x,
+      y: y,
+      width: width,
+      height: height,
+      graph: "rect",
+      type: "stroke",
+      color: randomColor,
+      selected: false,
+      class: label_class,
+      label: labels[label_class],
+    };
+    var id = create_UUID();
+    shapes[id] = newShape;
+
+    if (e.type == "click" || e.type == "load") {
+      createCard(id, newShape);
+    }
+    drawAll();
+  }
+
+  function handlePointer() {
+    if (!isDrawing) {
+      return;
+    }
+    isDrawing = false;
+    pointerButton.classList.remove("btn-secondary");
+    drawButton.classList.remove("btn-outline-secondary");
+    pointerButton.classList.add("btn-outline-secondary");
+    drawButton.classList.add("btn-secondary");
+  }
+
+  function handleDraw() {
+    if (isDrawing) {
+      return;
+    }
+    isDrawing = true;
+    unSelectShape();
+    drawButton.classList.remove("btn-secondary");
+    pointerButton.classList.remove("btn-outline-secondary");
+    drawButton.classList.add("btn-outline-secondary");
+    pointerButton.classList.add("btn-secondary");
+  }
+
+  function handleReplyRectangle() {
+    var shapesArray = Object.entries(shapes);
+    if (shapesArray.length > 0) {
+      var [id, shape] = shapesArray.pop();
+      removeRectangle(id);
+    }
+  }
+
+  function selectRectangle(id) {
+    if (shapes[id]) {
+      Object.entries(shapes).forEach(([key_id, shape]) => {
+        if (key_id == id) {
+          shapes[id].selected = true;
+          document.getElementById(`card_${key_id}`).classList.add("focus");
+        } else {
+          shape.selected = false;
+          document.getElementById(`card_${key_id}`).classList.remove("focus");
+        }
+      });
+      drawAll();
+    }
+  }
+
+  function removeRectangle(id) {
+    var removeCard = document.getElementById(id);
+    if (removeCard) {
+      removeCard.parentNode.removeChild(removeCard);
+    }
+    delete shapes[id];
+    drawAll();
+  }
+
+  function selectLabel(id) {
+    var select = document.getElementById(`label_${id}`);
+    var value = select.options[select.selectedIndex].value;
+    shapes[id].class = value;
+    shapes[id].label = labels[value];
+  }
+
+  function handleColorChange(id, newColor) {
+    shapes[id].color = newColor;
+    drawAll();
+  }
+
+  function createCard(id, shape) {
+    var RectCard = document.createElement("div");
+
+    RectCard.innerHTML = `
+      <div id="card_${id}" class="card round">
+        <div class="card-body" onclick="selectRectangle('${id}')">
+          <div class="row align-items-center">
+            <div class="col-3"><i class="fa fa-times-circle-o" aria-hidden="true" onclick="removeRectangle('${id}')"></i></div>
+            <div class="col-3">
+                <input type="color" class="form-control form-control-color" id="exampleColorInput"
+                  value="${shape.color}" title="Choose your color" onchange="handleColorChange('${id}', this.value);" />
+            </div>
+            <div class="col-6">
+              <select class="form-select" id="label_${id}" aria-label="Default select example" onchange="selectLabel('${id}')"></select>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    RectCard.setAttribute("id", id);
+    RectCard.setAttribute("class", "col mb-2");
+    container_cards.appendChild(RectCard);
+
+    createOptions(`${id}`);
+  }
+
+  function createOptions(id) {
+    const container_select = document.getElementById(`label_${id}`);
+    labels.forEach((value, index) => {
+      var option = document.createElement("option");
+      option.value = index;
+      option.textContent = value;
+      container_select.appendChild(option);
+      if (index == shapes[id].class) {
+        option.selected = true;
+      }
+    })
+  }
+
+  function createRandomColor() {
+    let maxVal = 0xffffff; // 16777215
+    let randomNumber = Math.random() * maxVal;
+    randomNumber = Math.floor(randomNumber);
+    randomNumber = randomNumber.toString(16);
+    let randColor = randomNumber.padStart(6, 0);
+    return `#${randColor.toUpperCase()}`;
+  }
+
+  function create_UUID() {
+    var dt = new Date().getTime();
+    var uuid = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
+      /[xy]/g,
+      function (c) {
+        var r = (dt + Math.random() * 16) % 16 | 0;
+        dt = Math.floor(dt / 16);
+        return (c == "x" ? r : (r & 0x3) | 0x8).toString(16);
+      }
+    );
+    return uuid;
+  }
+
+  function handleSaveLabelData() {
+
+    if (Object.keys(shapes).length != 0) {
+      console.log('cw', cw, 'ch', ch);
+
+      var labels_data = Object.values(shapes);
+      console.log('labels_data', labels_data);
+
+      const response = fetch(connection + "/api/new_label_data/{{stage}}/{{image_id}}", {
+        method: "POST",
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          image_width: cw,
+          image_height: ch,
+          labels_data: labels_data
+        })
+      })
+      .then((res) => res.json())
+      .then(
+        (result) => {
+          console.log(result);
+          window.location=document.referrer;
+        },
+        (error) => {
+          alert("Something wrong while saving data.")
+          console.log("get data error");
+        }
+      );
+
+    }
+  }
+
+
+</script>
+{% endblock %}

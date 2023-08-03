@@ -1,0 +1,314 @@
+{% extends "layout.html" %} {% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/FileUploader_style.css') }}" />
+
+<div id="overview"></div>
+
+<style>
+  .post-title {
+    width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+</style>
+
+<script type="text/babel" data-type="module">
+  document.getElementById("overview_li").classList.add('active');
+  
+  var connection = window.location.protocol + "//" + location.host;
+  const container = document.getElementById("overview");
+  const root = ReactDOM.createRoot(container);
+  const showStyle = { display: 'block' };
+  const hideStyle = { display: 'none' };
+
+  class DrawingCard extends React.Component {
+    constructor(props) {
+      super(props);
+      this.state = {
+        edit: false,
+        original_name: props.drawing_name,
+        ...props,
+      };
+      this.EditHandler = this.EditHandler.bind(this);
+      this.DeleteHandler = this.DeleteHandler.bind(this);
+      this.EditCheckHandler = this.EditCheckHandler.bind(this);
+      this.EditCancelHandler = this.EditCancelHandler.bind(this);
+      this.InputHandler = this.InputHandler.bind(this);
+    }
+
+    EditHandler() {
+      this.setState({edit: true});
+    }
+
+    DeleteHandler() {
+      var drawing_id = this.state.drawing_id;
+      $("#delete-modal-" + drawing_id).modal('hide');
+      this.props.onChange('delete', drawing_id);
+    }
+
+    EditCheckHandler() {
+      var new_drawing_name = this.state.drawing_name;
+      fetch( connection + '/api/edit_drawing', {
+        credentials: 'include',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          drawing_id: this.state.drawing_id,
+          drawing_name: new_drawing_name,
+          method: 'edit_name',
+        })
+      });
+      this.setState({ 
+        original_name: new_drawing_name,
+        edit: false,
+      });
+    }
+
+    EditCancelHandler() {
+      this.setState({ 
+        drawing_name: this.state.original_name,
+        edit: false,
+      });
+    }
+
+    InputHandler(event) {
+      // let target = event.target.name;
+      this.setState({ 
+        drawing_name: event.target.value
+      });
+    }
+
+    render() {
+      const { created_on, drawing_id, drawing_name, drawing_img, edit } = this.state;
+
+      return (
+        <div class="col">
+          <div class="card">
+            <a href={ connection + '/drawing/views/' + drawing_id }>
+              <img class="card-img-top" title={drawing_name} src={"data:image/peng;base64," + drawing_img} />
+            </a>
+            <div class="card-body">
+              <div class="row">
+                <small class="text-secondary">{created_on}</small>
+              </div>
+              { edit ?
+                <div class="row align-items-center">
+                  <div class="col-8">
+                    <input type="text" name="drawing_name" class="form-control fs-5" value={drawing_name} onChange={ this.InputHandler } />
+                  </div>
+                  <div class="col-4 text-end">
+                    <i type="button" class="fa fa-check fa-lg m-2 text-success" onClick={ this.EditCheckHandler }></i>
+                    <i type="button" class="fa fa-times fa-lg m-2 text-danger" onClick={ this.EditCancelHandler }></i>
+                  </div>
+                </div> :
+                <div class="row align-items-center">
+                  <div class="col-8">
+                    <h5 class="card-title post-title" >{drawing_name}</h5>
+                  </div>
+                  <div class="col-4 text-end">
+                    <i type="button" class="fa fa-pencil fa-lg m-2" onClick={ this.EditHandler }></i>
+                    <i type="button" class="fa fa-trash fa-lg m-2" data-bs-toggle="modal" data-bs-target={ "#delete-modal-" + drawing_id }></i>
+                  </div>
+                </div>
+              }
+              <div class="modal fade" id={ "delete-modal-" + drawing_id } tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true" >
+                <div class="modal-dialog">
+                  <div class="modal-content">
+                    <div class="modal-header">
+                      <h1 class="modal-title fs-5" id="exampleModalLabel">
+                        Pick confirm to delete this drawing.
+                      </h1>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-footer">
+                      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        Cancel
+                      </button>
+                      <input type="submit" class="btn btn-danger" value="Confirm" onClick={this.DeleteHandler} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+  }
+
+  class Main extends React.Component {
+    constructor(props) {
+      super(props);
+      this.state = {
+        isLoaded: false,
+        modal_error: false,
+        uploading: false,
+        rowData: [],
+      }
+      this.ActionHandler = this.ActionHandler.bind(this);
+      this.uploadSubmit = this.uploadSubmit.bind(this);
+    }
+
+    async ActionHandler( method, drawing_id ){
+      if ( method == 'delete' ) {
+        let response = await fetch( connection + '/api/edit_drawing', {
+          credentials: 'include',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            drawing_id: drawing_id,
+            method: 'delete_drawing',
+          })
+        });
+
+        let result = await response.json();
+
+        if ('success' in result){
+          var newRowData = this.state.rowData.filter(data => {
+            return data.drawing_id != drawing_id;
+          });
+        }
+
+        this.setState({ rowData: newRowData });
+      }
+    }
+
+    uploadSubmit() {
+      console.log("---sendFile---");
+      var input = document.querySelector('input[type="file"]');
+
+      if (input.files.length == 0) {
+        this.setState( { modal_error: true } );
+      } else {
+        this.setState( { uploading: true } );
+        var data = new FormData();
+        data.append("file", input.files[0]);
+        fetch(connection + "/api/upload_file", {
+          method: "POST",
+          body: data,
+        })
+          .then((res) => res.json())
+          .then((result) => {
+            this.setState( { 
+              uploading: false
+            } );
+          });
+          this.setState( { modal_error: false } );
+          $('#file-uploader-modal').modal('hide');
+      }
+      input.value = "";
+    }
+
+    componentDidMount() {
+      console.log("---componentDidMount---");
+      fetch(connection + "/api/get_drawings")
+        .then((res) => res.json())
+        .then(
+          (result) => {
+            var rowData = new Array();
+            Object.values(result).map((item) => {
+              var data = {
+                drawing_id: item.id,
+                created_on: item.created_on,
+                updated_on: item.updated_on,
+                drawing_name: item.drawing_name,
+                drawing_img: item.drawing_img,
+              };
+              rowData.push(data);
+            });
+
+            rowData = rowData.sort((r1, r2) => (r1.drawing_id < r2.drawing_id) ? 1 : (r1.drawing_id > r2.drawing_id) ? -1 : 0);
+
+            this.setState({
+              isLoaded: true,
+              rowData: rowData,
+            });
+          },
+          (error) => {
+            this.setState({
+              isLoaded: false,
+            });
+            console.log("get data error");
+          }
+        );
+    }
+
+    render() {
+      const { isLoaded, modal_error, uploading, rowData } = this.state;
+
+      if (isLoaded) {
+        return (
+          <div>
+            <div class="row p-3">
+              <div class="col-6 text-dark">
+                <h3 class="font-weight-bold">Overview</h3>
+              </div>
+              <div class="col-6 text-end">
+                { 
+                  uploading ? 
+                  <button class="btn btn-outline-primary" type="button" disabled>
+                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>Loading...
+                  </button> : 
+                  <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#file-uploader-modal">Upload</button>
+                }
+              </div>
+              <div class="modal fade" id="file-uploader-modal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true" >
+                <div class="modal-dialog modal-lg">
+                  <div class="modal-content">
+                    <div class="modal-header">
+                      <h1 class="modal-title fs-5" id="exampleModalLabel">
+                        Upload new File
+                      </h1>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body form-group files">
+                      <small class="text-danger" style={ modal_error ? showStyle : hideStyle }>Please select file</small>
+                      <input type="file" class="form-control" name="file" accept="image/png, image/jpeg, .pdf" />
+                    </div>
+                    <div class="modal-footer">
+                      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" >
+                        Close
+                      </button>
+                      <input type="submit" class="btn btn-primary" value="Upload" onClick={this.uploadSubmit} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+              {rowData.map((row) => (
+                <DrawingCard key={row.drawing_id} onChange={ this.ActionHandler } {...row} />
+              ))}
+            </div>
+          </div>
+        );
+      } else {
+        return (
+          <div>
+            <div class="row p-3">
+              <div class="col-6 text-dark">
+                <h3 class="font-weight-bold">Overview</h3>
+              </div>
+            </div>
+            <div class="d-flex justify-content-center">
+              <div class="spinner-border m-5" role="status">
+                <span class="visually-hidden">Loading...</span>
+              </div>
+            </div>
+          </div>
+        );
+      }
+    }
+  }
+
+  root.render(
+    <React.StrictMode>
+      <Main />
+    </React.StrictMode>
+  );
+</script>
+{% endblock %}

@@ -1,0 +1,333 @@
+{% extends "layout.html" %} {% block content %}
+
+<div id="container"></div>
+
+<script type="text/babel" data-type="module">
+  document.getElementById("labeled_li").classList.add('active');
+
+  var connection = window.location.protocol + "//" + location.host;
+  const container = document.getElementById("container");
+  const root = ReactDOM.createRoot(container);
+
+  class ImageCard extends React.Component {
+    constructor(props) {
+      super(props);
+      this.state = {
+        ...props
+      }
+      this.cardOnSelect = this.cardOnSelect.bind(this)
+    }
+
+    cardOnSelect(event) {
+      if (event.target.id != 'link-icon'){
+        this.props.selectHandler(this.state.id, this.state.stage);
+      }
+    }
+
+    render() {
+      const { created_on, id, img, name, stage } = this.state;
+      const { check, exported } = this.props
+      const pointerStyle = { cursor: 'pointer' };
+      const autoStyle = { cursor: 'auto' };
+
+      return (
+        <div class="col">
+          <div class={"card" + (check ? " text-white bg-primary border-primary mb-3" : " mb-3")} style={exported ? autoStyle : pointerStyle} onClick={exported ? null: this.cardOnSelect}>
+              <img class="card-img-top" title={name} src={"data:image/peng;base64," + img} />
+            <div class="card-body">
+              <div class="row">
+                <div class="col-1">
+                  {check ? <i type="button" class="fa fa-check"></i> : null}
+                </div>
+                <div class="col-9 p-0">
+                  <small class={(check ? "text-white" : "text-secondary")}>{created_on}</small>
+                  <h5 class="card-title post-title" >{name}</h5>
+                </div>
+                <div class="col-2 text-end">
+                  <a class={(check ? "text-white" : "text-secondary")} href={`${connection}/label_image?stage=${stage}&image_id=${id}&image_name=${name}`}><i id="link-icon" class="fa fa-external-link" aria-hidden="true"></i></a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )
+    }
+  }
+
+
+  class Main extends React.Component {
+    constructor(props) {
+      super(props);
+      this.state = {
+        isLoaded: false,
+        rowData: [],
+      }
+      this.exportHandler = this.exportHandler.bind(this);
+      this.ChangeCheckboxState = this.ChangeCheckboxState.bind(this);
+      this.checkHandler = this.checkHandler.bind(this);
+      this.selectHandler = this.selectHandler.bind(this);
+    }
+
+    exportHandler() {
+      var exportList = this.state.rowData.filter(data => { return data.check });
+      var datas = [];
+      exportList.forEach( row => {
+        datas.push({
+          id: row.id,
+          stage: row.stage
+        })
+      } )
+
+      fetch(connection + "/api/export_label_datas", {
+        method: "POST",
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          datas: datas
+        })
+      })
+      .then((res) => res.blob())
+      .then(blob => {
+        var file = window.URL.createObjectURL(blob);
+        window.location.assign(file);
+      });
+
+      var rowData = this.state.rowData;
+      rowData.forEach( row => {
+        if (row.check){
+          row.check = false;
+          row.exported = true;
+        }
+      } )
+
+      
+      this.setState({rowData: rowData});
+      this.ChangeCheckboxState();
+    }
+
+    ChangeCheckboxState() {
+      let rowData = this.state.rowData;
+      var datas = rowData.filter(data => { return !data.exported; });
+      var filterDatas = []
+      var checkedDatas = []
+
+
+      var checkboxElements = document.querySelectorAll('input[type=checkbox]')
+      checkboxElements.forEach(ele => {
+        var value = ele.value;
+        switch (value) {
+          case "all":
+            filterDatas = datas;
+            checkedDatas = filterDatas.filter(data => { return data.check });
+            break;
+          default:
+            filterDatas = datas.filter(data => { return data.stage == value; });
+            checkedDatas = filterDatas.filter(data => { return data.check });
+            break;
+        }
+
+        if (checkedDatas.length == 0) {
+          ele.indeterminate = false;
+          ele.checked = false;
+        } else if (checkedDatas.length == filterDatas.length) {
+          ele.indeterminate = false;
+          ele.checked = true;
+        } else {
+          ele.indeterminate = true;
+        }
+      });
+    }
+
+    checkHandler(event) {
+      let rowData = this.state.rowData;
+      var target = event.target.value;
+      var checked = event.target.checked;
+
+      switch (target) {
+        case "all":
+          rowData.forEach(data => {
+            if (!data.exported) {
+              data.check = checked
+            }
+          })
+          break;
+        default:
+          rowData.forEach(data => {
+            if (!data.exported && data.stage == target) {
+              data.check = checked
+            }
+          })
+          break;
+      }
+      
+      this.setState({rowData: rowData});
+      this.ChangeCheckboxState();
+    }
+
+    selectHandler(id, stage) {
+      var rowData = this.state.rowData;
+      rowData.forEach(data => {
+        if (data.id == id && data.stage == stage) {
+          data.check = !data.check
+        }
+      })
+      
+      this.setState({rowData: rowData});
+      this.ChangeCheckboxState();
+    }
+
+    componentDidMount() {
+      console.log("---componentDidMount---");
+      fetch(connection + "/api/get_label_datas")
+        .then((res) => res.json())
+        .then(
+          (result) => {
+            // console.log(result);
+            let label_datas = result.label_datas.sort((p1, p2) => (p1.created_on < p2.created_on) ? 1 : (p1.created_on > p2.created_on) ? -1 : 0)
+            label_datas.forEach(data => { data.check = false })
+            this.setState({
+              isLoaded: true,
+              rowData: label_datas,
+            });
+          },
+          (error) => {
+            this.setState({
+              isLoaded: false,
+            });
+            console.log("get data error");
+          }
+        );
+    }
+
+    render() {
+      const { isLoaded, rowData } = this.state;
+      let allRowData = rowData.filter(data => { return !data.exported; });
+      let drawingRowData = allRowData.filter(data => { return data.stage == 'drawing'; });
+      let viewRowData = allRowData.filter(data => { return data.stage == 'view'; });
+      let dimensioningRowData = allRowData.filter(data => { return data.stage == 'dimensioning'; });
+      let exportedRowData = rowData.filter(data => { return data.exported; });
+      console.log(allRowData);
+
+
+      if (isLoaded) {
+        return (
+          <div>
+            <div class="row p-3">
+              <div class="col-6 text-dark">
+                <h3 class="font-weight-bold">Labeled Images</h3>
+              </div>
+              <div class="col-6 text-end">
+                <button class="btn btn-outline-primary" onClick={this.exportHandler}>Export</button>
+              </div>
+            </div>
+
+            <ul class="nav nav-pills justify-content-center mb-3" id="pills-tab" role="tablist">
+              <li class="nav-item mx-2" role="presentation">
+                <button class="nav-link active" id="pills-all-tab" data-bs-toggle="pill" data-bs-target="#pills-all" type="button" role="tab" aria-controls="pills-all" aria-selected="true">All</button>
+              </li>
+              <li class="nav-item mx-2" role="presentation">
+                <button class="nav-link" id="pills-drawing-tab" data-bs-toggle="pill" data-bs-target="#pills-drawing" type="button" role="tab" aria-controls="pills-drawing" aria-selected="false">Drawing</button>
+              </li>
+              <li class="nav-item mx-2" role="presentation">
+                <button class="nav-link" id="pills-view-tab" data-bs-toggle="pill" data-bs-target="#pills-view" type="button" role="tab" aria-controls="pills-view" aria-selected="false">View</button>
+              </li>
+              <li class="nav-item mx-2" role="presentation">
+                <button class="nav-link" id="pills-dim-tab" data-bs-toggle="pill" data-bs-target="#pills-dim" type="button" role="tab" aria-controls="pills-dim" aria-selected="false">Dimension</button>
+              </li>
+              <li class="nav-item mx-2" role="presentation">
+                <button class="nav-link" id="pills-exported-tab" data-bs-toggle="pill" data-bs-target="#pills-exported" type="button" role="tab" aria-controls="pills-exported" aria-selected="false">Exported</button>
+              </li>
+            </ul>
+
+
+            <div class="tab-content" id="pills-tabContent">
+              <div class="tab-pane fade show active" id="pills-all" role="tabpanel" aria-labelledby="pills-all-tab">
+                <div class="form-check m-2">
+                  <input class="form-check-input" type="checkbox" value="all" id="checkboxAll" onClick={this.checkHandler} />
+                  <label class="form-check-label" for="checkboxAll">
+                    Select all
+                  </label>
+                </div>
+                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                  {allRowData.map((row) => (
+                    <ImageCard key={'all' + row.id} selectHandler={this.selectHandler} {...row} />
+                  ))}
+                </div>
+              </div>
+              <div class="tab-pane fade" id="pills-drawing" role="tabpanel" aria-labelledby="pills-drawing-tab">
+                <div class="form-check m-2">
+                  <input class="form-check-input" type="checkbox" value="drawing" id="checkboxDrawing" onClick={this.checkHandler} />
+                  <label class="form-check-label" for="checkboxDrawing">
+                    Select all
+                  </label>
+                </div>
+                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                  {drawingRowData.map((row) => (
+                    <ImageCard key={row.stage + row.id} selectHandler={this.selectHandler} {...row} />
+                  ))}
+                </div>
+              </div>
+              <div class="tab-pane fade" id="pills-view" role="tabpanel" aria-labelledby="pills-view-tab">
+                <div class="form-check m-2">
+                  <input class="form-check-input" type="checkbox" value="view" id="checkboxView" onClick={this.checkHandler} />
+                  <label class="form-check-label" for="checkboxView">
+                    Select all
+                  </label>
+                </div>
+                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                  {viewRowData.map((row) => (
+                    <ImageCard key={row.stage + row.id} selectHandler={this.selectHandler} {...row} />
+                  ))}
+                </div>
+              </div>
+              <div class="tab-pane fade" id="pills-dim" role="tabpanel" aria-labelledby="pills-dim-tab">
+                <div class="form-check m-2">
+                  <input class="form-check-input" type="checkbox" value="dimensioning" id="checkboxDimensioning" onClick={this.checkHandler} />
+                  <label class="form-check-label" for="checkboxDimensioning">
+                    Select all
+                  </label>
+                </div>
+                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                  {dimensioningRowData.map((row) => (
+                    <ImageCard key={row.stage + row.id} selectHandler={this.selectHandler} {...row} />
+                  ))}
+                </div>
+              </div>
+              <div class="tab-pane fade" id="pills-exported" role="tabpanel" aria-labelledby="pills-exported-tab">
+                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                  {exportedRowData.map((row) => (
+                    <ImageCard key={'exported' + row.id} {...row} />
+                  ))}
+                </div>
+              </div>
+
+            </div>
+          </div>
+        );
+      } else {
+        return (
+          <div>
+            <div class="row p-3">
+              <div class="col-6 text-dark">
+                <h3 class="font-weight-bold">Labeled Images</h3>
+              </div>
+            </div>
+            <div class="d-flex justify-content-center">
+              <div class="spinner-border m-5" role="status">
+                <span class="visually-hidden">Loading...</span>
+              </div>
+            </div>
+          </div>
+        );
+      }
+    }
+  }
+
+  root.render(
+    <React.StrictMode>
+      <Main />
+    </React.StrictMode>
+  );
+</script>
+{% endblock %}

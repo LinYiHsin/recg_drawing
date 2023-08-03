@@ -1,0 +1,602 @@
+{% extends "layout.html" %} {% block content %}
+<div id="view-dimensionings"></div>
+
+<script type="text/babel" data-type="module">
+  var connection = window.location.protocol + "//" + location.host;
+  const container = document.getElementById("view-dimensionings");
+  const root = ReactDOM.createRoot(container);
+  const showStyle = { display: "block" };
+  const hideStyle = { display: "none" };
+
+
+  class DIM_tr extends React.Component {
+    constructor(props) {
+      super(props);
+      this.state = {
+        edit: false,
+        ...props,
+      }
+      this.OpenWindowHandler = this.OpenWindowHandler.bind(this);
+      this.DeleteHandler = this.DeleteHandler.bind(this);
+      this.EditHandler = this.EditHandler.bind(this);
+      this.InputHandler = this.InputHandler.bind(this);
+      this.EditCheckHandler = this.EditCheckHandler.bind(this);
+      this.EditCancelHandler = this.EditCancelHandler.bind(this);
+    }
+
+    DeleteHandler() {
+      var data = {
+        id: this.state.id,
+        annotation: 'dimensioning',
+        method: 'delete',
+      }
+      $("#delete-modal-dim-" + this.state.id).modal('hide');
+      this.props.onChange(data);
+    }
+
+    EditHandler() {
+      this.setState({ edit: true });
+    }
+
+    InputHandler(e) {
+      console.log(e.target.name, e.target.value);
+      var target = e.target.name;
+      var value = e.target.value;
+
+      switch (target) {
+        case "dimensioning":
+          this.setState({ dimensioning: value });
+          break;
+        case "tolerance":
+          this.setState({ tolerance: value });
+          break;
+        default:
+          break;
+      }
+    }
+
+    EditCheckHandler() {
+
+      fetch(connection + '/api/edit_annotation', {
+        credentials: 'include',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: this.state.id,
+          dimensioning: this.state.dimensioning,
+          tolerance: this.state.tolerance,
+          annotation: 'dimensioning',
+          method: 'edit',
+        })
+      });
+      this.setState({
+        edit: false,
+      });
+    }
+
+    EditCancelHandler() {
+      this.setState({
+        dimensioning: this.props.dimensioning,
+        tolerance: this.props.tolerance,
+        edit: false,
+      });
+    }
+
+    OpenWindowHandler() {
+      window.location.href = `${connection}/label_image?stage=dimensioning&image_id=${this.state.id}&image_name=${this.state.dim_name}`;
+    }
+
+    render() {
+      const { id, dim_name, dim_img, dim_img_predict, dimensioning, tolerance, edit } = this.state;
+
+
+      return (
+        <tr>
+          <th scope="row" class="align-middle">{dim_name}</th>
+          <td><img title={dim_name} class="img-fluid rounded mx-auto d-block" src={"data:image/peng;base64," + dim_img} /></td>
+          <td><img title="Click to relabel the image." class="img-fluid rounded mx-auto d-block" src={"data:image/peng;base64," + dim_img_predict} onClick={this.OpenWindowHandler} /></td>
+          <td class="align-middle">
+            {edit ?
+              <input type="number" name="dimensioning" class="form-control" value={dimensioning} onChange={this.InputHandler} /> : dimensioning
+            }
+          </td>
+          <td class="align-middle">
+            {edit ? <input type="text" name="tolerance" class="form-control" value={tolerance} onChange={this.InputHandler} /> : tolerance}
+          </td>
+          <td class="align-middle">
+            {edit ?
+              <div>
+                <i type="button" class="fa fa-check fa-lg m-2 text-success" onClick={this.EditCheckHandler}></i>
+                <i type="button" class="fa fa-times fa-lg m-2 text-danger" onClick={this.EditCancelHandler}></i>
+              </div> :
+              <div>
+                <i type="button" class="fa fa-pencil fa-lg m-2" onClick={this.EditHandler}></i>
+                <i type="button" class="fa fa-trash fa-lg m-2" data-bs-toggle="modal" data-bs-target={"#delete-modal-dim-" + id}></i>
+              </div>
+            }
+            <div class="modal fade" id={"delete-modal-dim-" + id} tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true" >
+              <div class="modal-dialog">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="exampleModalLabel">
+                      Pick confirm to delete this data.
+                    </h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                      Cancel
+                    </button>
+                    <input type="submit" class="btn btn-danger" value="Confirm" onClick={this.DeleteHandler} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+      );
+    }
+  }
+
+
+  class FCF_tr extends React.Component {
+    constructor(props) {
+      super(props);
+      this.state = {
+        edit: false,
+        ...props,
+      }
+      this.DeleteHandler = this.DeleteHandler.bind(this);
+      this.EditHandler = this.EditHandler.bind(this);
+      this.InputHandler = this.InputHandler.bind(this);
+      this.EditCheckHandler = this.EditCheckHandler.bind(this);
+      this.EditCancelHandler = this.EditCancelHandler.bind(this);
+    }
+
+    DeleteHandler() {
+      var data = {
+        id: this.state.id,
+        annotation: 'dimensioning',
+        method: 'delete',
+      }
+      $("#delete-modal-dim-" + this.state.id).modal('hide');
+      this.props.onChange(data);
+    }
+
+    EditHandler() {
+      this.setState({ edit: true });
+    }
+
+    InputHandler(e) {
+      console.log(e.target.name, e.target.value);
+      var target = e.target.name;
+      var value = e.target.value;
+
+      switch (target) {
+        case "symbol":
+          this.setState({ symbol: value });
+          break;
+        case "tolerance":
+          this.setState({ tolerance: value });
+          break;
+        case "datum":
+          this.setState({ datum: value });
+          break;
+        default:
+          break;
+      }
+    }
+
+    EditCheckHandler() {
+
+      fetch(connection + '/api/edit_annotation', {
+        credentials: 'include',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: this.state.id,
+          symbol: this.state.symbol,
+          tolerance: this.state.tolerance,
+          datum: this.state.datum,
+          annotation: 'fcf',
+          method: 'edit',
+        })
+      });
+      this.setState({
+        edit: false,
+      });
+    }
+
+    EditCancelHandler() {
+      this.setState({
+        symbol: this.props.symbol,
+        tolerance: this.props.tolerance,
+        datum: this.props.datum,
+        edit: false,
+      });
+    }
+
+    render() {
+      const { id, fcf_name, fcf_img, symbol, tolerance, datum, edit } = this.state;
+      // console.log(this.state);
+
+      return (
+        <tr>
+          <th class="align-middle">{fcf_name}</th>
+          <td><img title={fcf_name} class="img-fluid rounded mx-auto d-block" src={"data:image/peng;base64," + fcf_img} /></td>
+          <td class="align-middle">{edit ? <input type="text" name="symbol" class="form-control" value={symbol} onChange={this.InputHandler} /> : symbol}</td>
+          <td class="align-middle">{edit ? <input type="text" name="tolerance" class="form-control" value={tolerance} onChange={this.InputHandler} /> : tolerance}</td>
+          <td class="align-middle">{edit ? <input type="text" name="datum" class="form-control" value={datum} onChange={this.InputHandler} /> : datum}</td>
+          <td class="align-middle">
+            {edit ?
+              <div>
+                <i type="button" class="fa fa-check fa-lg m-2 text-success" onClick={this.EditCheckHandler}></i>
+                <i type="button" class="fa fa-times fa-lg m-2 text-danger" onClick={this.EditCancelHandler}></i>
+              </div> :
+              <div>
+                <i type="button" class="fa fa-pencil fa-lg m-2" onClick={this.EditHandler}></i>
+                <i type="button" class="fa fa-trash fa-lg m-2" data-bs-toggle="modal" data-bs-target={"#delete-modal-fcf-" + id}></i>
+              </div>
+            }
+            <div class="modal fade" id={"delete-modal-fcf-" + id} tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true" >
+              <div class="modal-dialog">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="exampleModalLabel">
+                      Pick confirm to delete this data.
+                    </h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                      Cancel
+                    </button>
+                    <input type="submit" class="btn btn-danger" value="Confirm" onClick={this.DeleteHandler} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+      );
+    }
+  }
+
+
+  class Datum_tr extends React.Component {
+    constructor(props) {
+      super(props);
+      this.state = {
+        edit: false,
+        ...props,
+      }
+      this.DeleteHandler = this.DeleteHandler.bind(this);
+      this.EditHandler = this.EditHandler.bind(this);
+      this.InputHandler = this.InputHandler.bind(this);
+      this.EditCheckHandler = this.EditCheckHandler.bind(this);
+      this.EditCancelHandler = this.EditCancelHandler.bind(this);
+    }
+
+    DeleteHandler() {
+      var data = {
+        id: this.state.id,
+        annotation: 'datum',
+        method: 'delete',
+      }
+      $("#delete-modal-datum-" + this.state.id).modal('hide');
+      this.props.onChange(data);
+    }
+
+    EditHandler() {
+      this.setState({ edit: true });
+    }
+
+    InputHandler(e) {
+      var target = e.target.name;
+      var value = e.target.value;
+
+      switch (target) {
+        case "datum":
+          this.setState({ datum: value });
+          break;
+        default:
+          break;
+      }
+    }
+
+    EditCheckHandler() {
+
+      fetch(connection + '/api/edit_annotation', {
+        credentials: 'include',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: this.state.id,
+          datum: this.state.datum,
+          annotation: 'datum',
+          method: 'edit',
+        })
+      });
+      this.setState({
+        edit: false,
+      });
+    }
+
+    EditCancelHandler() {
+      this.setState({
+        datum: this.props.datum,
+        edit: false,
+      });
+    }
+
+    render() {
+      const { id, datum_name, datum_img, datum, edit } = this.state;
+      // console.log(this.state);
+
+      return (
+        <tr>
+          <th class="align-middle">{datum_name}</th>
+          <td><img title={datum_name} class="img-fluid rounded mx-auto d-block" src={"data:image/peng;base64," + datum_img} /></td>
+          <td class="align-middle">{edit ? <input type="text" name="datum" class="form-control" value={datum} onChange={this.InputHandler} /> : datum}</td>
+          <td class="align-middle">
+            {edit ?
+              <div>
+                <i type="button" class="fa fa-check fa-lg m-2 text-success" onClick={this.EditCheckHandler}></i>
+                <i type="button" class="fa fa-times fa-lg m-2 text-danger" onClick={this.EditCancelHandler}></i>
+              </div> :
+              <div>
+                <i type="button" class="fa fa-pencil fa-lg m-2" onClick={this.EditHandler}></i>
+                <i type="button" class="fa fa-trash fa-lg m-2" data-bs-toggle="modal" data-bs-target={"#delete-modal-datum-" + id}></i>
+              </div>
+            }
+            <div class="modal fade" id={"delete-modal-datum-" + id} tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true" >
+              <div class="modal-dialog">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="exampleModalLabel">
+                      Pick confirm to delete this data.
+                    </h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                      Cancel
+                    </button>
+                    <input type="submit" class="btn btn-danger" value="Confirm" onClick={this.DeleteHandler} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+      );
+    }
+  }
+
+  class Main extends React.Component {
+    constructor(props) {
+      super(props);
+      this.state = {
+        isLoaded: false,
+        windowWidth: window.innerWidth,
+        windowHeight: window.innerHeight,
+        dimensionings: [],
+        fcfs: [],
+        datums: []
+      }
+      this.OpenWindowHandler = this.OpenWindowHandler.bind(this);
+      this.DeleteHandler = this.DeleteHandler.bind(this);
+    }
+
+    async DeleteHandler(data) {
+      console.log(data);
+      let response = await fetch(connection + '/api/edit_annotation', {
+        credentials: 'include',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+      });
+
+      let result = await response.json();
+
+      if ('success' in result) {
+        switch (data.annotation) {
+          case "dimensioning":
+            var dimensionings = this.state.dimensionings.filter(row => {
+              return row.id != data.id;
+            });
+            this.setState({ dimensionings: dimensionings });
+            break;
+          case "fcf":
+            var fcfs = this.state.fcfs.filter(row => {
+              return row.id != data.id;
+            });
+            this.setState({ fcfs: fcfs });
+            break;
+          case "datum":
+            var datums = this.state.datums.filter(row => {
+              return row.id != data.id;
+            });
+            this.setState({ datums: datums });
+            break;
+          default:
+            break;
+        }
+      }
+    }
+
+    OpenWindowHandler() {
+      window.location.href = `${connection}/label_image?stage=view&image_id=${this.state.id}&image_name=${this.state.view_name}`;
+    }
+
+    componentDidMount() {
+      console.log("---componentDidMount---");
+
+      window.addEventListener('resize', this.handleResize.bind(this));
+
+      fetch(connection + "/api/get_view_dimensionings/{{id}}")
+        .then((res) => res.json())
+        .then(
+          (result) => {
+            console.log(result);
+            this.setState({
+              isLoaded: true,
+              ...result,
+            });
+          },
+          (error) => {
+            this.setState({
+              isLoaded: false,
+            });
+            console.log("get data error");
+          }
+        );
+    }
+
+    componentWillUnMount() {
+      window.removeEventListener('resize', this.handleResize.bind(this));
+    }
+
+    handleResize(e) {
+      this.setState({
+        windowWidth: e.target.innerWidth,
+        windowHeight: e.target.innerHeight,
+      })
+    }
+
+    render() {
+      const { isLoaded, windowWidth, windowHeight, drawing_id, drawing_name, view_name, view_img_predict, dimensionings, fcfs, datums } = this.state;
+      var viewImgHeight = (windowWidth * 9 / 16) < windowHeight / 2 ? (windowWidth * 9 / 16) : windowHeight / 2;
+      var imgDivStyle = { height: viewImgHeight };
+      var imgStyle = { width: 'auto' };
+      var width15Style = { width: '15%' };
+
+      
+
+      if (isLoaded) {
+        return (
+          <div>
+            <div class="row p-3">
+              <div class="text-dark">
+                <h3 class="font-weight-bold">
+                  <a href={connection + '/drawing/views/' + drawing_id} class="font-weight-bold link-dark">{drawing_name}</a> / {view_name} / Dimensionings
+                </h3>
+              </div>
+            </div>
+
+            <div class="row p-3" style={imgDivStyle}>
+              <img title="Click to relabel the image." class="img-fluid rounded mh-100 mx-auto" style={imgStyle} src={"data:image/peng;base64," + view_img_predict} onClick={this.OpenWindowHandler} />
+            </div>
+
+            <ul class="nav nav-tabs" id="myTab" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="dim-tab" data-bs-toggle="tab" data-bs-target="#dim" type="button" role="tab" aria-controls="dim" aria-selected="true">Dimension</button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="fcf-tab" data-bs-toggle="tab" data-bs-target="#fcf" type="button" role="tab" aria-controls="fcf" aria-selected="false">Feature Control Frame</button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="datum-tab" data-bs-toggle="tab" data-bs-target="#datum" type="button" role="tab" aria-controls="datum" aria-selected="false">Datum</button>
+              </li>
+            </ul>
+            <div class="tab-content" id="myTabContent">
+              <div class="tab-pane fade show active" id="dim" role="tabpanel" aria-labelledby="dim-tab">
+                <div class="row p-3">
+                  <table class="table table-hover">
+                    <thead>
+                      <tr>
+                        <th scope="col">Name</th>
+                        <th scope="col">Image</th>
+                        <th scope="col">Image Predict</th>
+                        <th scope="col" style={width15Style}>Dimensioning</th>
+                        <th scope="col" style={width15Style}>Tolerance</th>
+                        <th scope="col"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dimensionings.map((row) => (
+                        <DIM_tr key={row.id} onChange={this.DeleteHandler} {...row} />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="tab-pane fade" id="fcf" role="tabpanel" aria-labelledby="fcf-tab">
+                <div class="row p-3">
+                  <table class="table">
+                    <thead>
+                      <tr>
+                        <th scope="col">Name</th>
+                        <th scope="col">Image</th>
+                        <th scope="col" style={width15Style}>Symbol</th>
+                        <th scope="col" style={width15Style}>Tolerance</th>
+                        <th scope="col" style={width15Style}>Datum</th>
+                        <th scope="col"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {fcfs.map((row) => (
+                        <FCF_tr key={row.id} {...row} />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="tab-pane fade" id="datum" role="tabpanel" aria-labelledby="datum-tab">
+                <div class="row p-3">
+                  <table class="table">
+                    <thead>
+                      <tr>
+                        <th scope="col">Name</th>
+                        <th scope="col">Image</th>
+                        <th scope="col" class="w-25">Datum</th>
+                        <th scope="col"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {datums.map((row) => (
+                        <Datum_tr key={row.id} onChange={this.DeleteHandler} {...row} />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        );
+      } else {
+        return (
+          <div>
+            <div class="row p-3">
+              <div class="text-dark">
+                <h3 class="font-weight-bold">Drawing / View / Dimensionings</h3>
+              </div>
+            </div>
+            <div class="d-flex justify-content-center">
+              <div class="spinner-border m-5" role="status">
+                <span class="visually-hidden">Loading...</span>
+              </div>
+            </div>
+          </div>
+        );
+      }
+    }
+  }
+
+  root.render(
+    <React.StrictMode>
+      <Main />
+    </React.StrictMode>
+  );
+</script>
+{% endblock %}

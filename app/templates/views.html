@@ -1,0 +1,132 @@
+{% extends "layout.html" %} {% block content %}
+
+<div id="drawing-views"></div>
+
+<style>
+
+</style>
+
+<script>
+  
+</script>
+
+<script type="text/babel" data-type="module">
+  var connection = window.location.protocol + "//" + location.host;
+  const container = document.getElementById("drawing-views");
+  const root = ReactDOM.createRoot(container);
+  const showStyle = { display: "block" };
+  const hideStyle = { display: "none" };
+
+  class ViewCard extends React.Component {
+    constructor(props) {
+      super(props);
+      this.state = {
+        ...props,
+      };
+    }
+
+    render() {
+      const { id, view_name, view_img } = this.state;
+
+      return(
+        <div class="col">
+          <div class="card h-100">
+
+            <div class="card-body">
+              <div class="row align-items-center">
+                <h5 class="card-title post-title" >{view_name}</h5>
+              </div>
+              <a href={ connection + '/view/dimensionings/' + id }>
+                <img class="card-img-top" title={view_name} src={"data:image/peng;base64," + view_img} />
+              </a>
+            </div>
+          </div>
+        </div>
+      );
+    }
+  }
+
+  class Main extends React.Component {
+    constructor(props) {
+      super(props);
+      this.state = {
+        isLoaded: false,
+      }
+      this.OpenWindowHandler = this.OpenWindowHandler.bind( this );
+    }
+
+    OpenWindowHandler() {
+      window.location.href = `${connection}/label_image?stage=drawing&image_id=${this.state.id}&image_name=${this.state.drawing_name}`;
+    }
+
+    componentDidMount() {
+      console.log("---componentDidMount---");
+      fetch(connection + "/api/get_drawing_views/{{id}}")
+        .then((res) => res.json())
+        .then(
+          (result) => {
+            this.setState({
+              isLoaded: true,
+              ...result,
+            });
+          },
+          (error) => {
+            this.setState({
+              isLoaded: false,
+            });
+            console.log("get data error");
+          }
+        );
+      
+    }
+
+    render() {
+      const { isLoaded, drawing_name, drawing_img_predict, views } = this.state;
+
+      if (isLoaded) {
+        return (
+          <div>
+            <div class="row p-3">
+              <div class="text-dark">
+                <h3 class="font-weight-bold">{drawing_name} / Views</h3>
+              </div>
+            </div>
+
+            <div class="row p-3">
+              <img title="Click to relabel the image." src={"data:image/peng;base64," + drawing_img_predict} onClick={ this.OpenWindowHandler } />
+            </div>
+
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 p-3">
+              {views.map((row) => (
+                <ViewCard key={row.id} {...row} />
+              ))}
+            </div>
+          </div>
+        );
+      } else {
+        return (
+          <div>
+            <div class="row p-3">
+              <div class="text-dark">
+                <h3 class="font-weight-bold">Drawing / Views</h3>
+              </div>
+            </div>
+            <div class="d-flex justify-content-center">
+              <div class="spinner-border m-5" role="status">
+                <span class="visually-hidden">Loading...</span>
+              </div>
+            </div>
+          </div>
+        );
+      }
+    }
+  }
+
+  root.render(
+    <React.StrictMode>
+      <Main />
+    </React.StrictMode>
+  );
+</script>
+
+{% endblock %}

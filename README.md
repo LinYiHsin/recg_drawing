@@ -19,11 +19,11 @@
 
 # Install required Python packages:
 
-    pip install -r requirements.txt
+    $ pip install -r requirements.txt
 
-    pip install { torch download file path }
+    $ pip install { torch download file path }
 
-    pip install { torchvision download file path }
+    $ pip install { torchvision download file path }
 
 
 # PyTorch版本1.10，安裝完tensorboard後運行代碼時出現錯誤：AttributeError: module 'distutils' has no attribute 'version'。

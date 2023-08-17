@@ -7,15 +7,27 @@
     - Links for torch:
         https://download.pytorch.org/whl/torch/
 
-
     - Links for torchvision:
         https://download.pytorch.org/whl/torchvision/
-
 
     - example( PYTHON == 3.9, NVIDIA CUDA == 10.2, Windows X64 ):
         torch download : torch-1.10.2+cu102-cp39-cp39-win_amd64.whl
         torchvision download : torchvision-0.11.3+cu102-cp39-cp39-win_amd64.whl
 
+
+## Tesseract-OCR
+    - Installer can be downloaded here:
+        https://github.com/UB-Mannheim/tesseract/wiki
+
+    - Install language pack
+        ./tessdata -> (the default path )C:/Program Files/Tesseract-OCR/tessdata
+
+    - Environment configuration
+        Add [TESSDATA_PREFIX] environment variable
+        ．C:\Program Files\Tesseract-OCR\tessdata
+        Environment variable PATH added
+        ．C:\Program Files\Tesseract-OCR\tessdata
+        ．C:\Program Files\Tesseract-OCR
 
 # Install required Python packages:
 

@@ -197,18 +197,19 @@ def Recognition( self, drawing_id, filename, drawing_path ):
                 DIM_name = detail['image_name'].rsplit('.', 1)[0]
                 datas = detail['datas']
                 for data in datas:
+                    data_text = data['text'].replace("'", "''")
                     if data['label'] == "dimension":
-                        DIMs_map[ DIM_name ]["dimensioning"] = data['text']
+                        DIMs_map[ DIM_name ]["dimensioning"] = data_text
                     elif data['label'] == "tolerance":
-                        DIMs_map[ DIM_name ]["tolerance"] = data['text']
+                        DIMs_map[ DIM_name ]["tolerance"] = data_text
                     elif data['label'] == "tolerance_upper" or data['label'] == "tolerance_lower":
                         if 'tolerance' in DIMs_map[ DIM_name ]:
                             if data['label'] == "tolerance_upper":
-                                DIMs_map[ DIM_name ]["tolerance"] = data['text'] + ', ' + DIMs_map[ DIM_name ]["tolerance"]
+                                DIMs_map[ DIM_name ]["tolerance"] = data_text + ', ' + DIMs_map[ DIM_name ]["tolerance"]
                             else:
-                                DIMs_map[ DIM_name ]["tolerance"] = DIMs_map[ DIM_name ]["tolerance"] + ', ' + data['text']
+                                DIMs_map[ DIM_name ]["tolerance"] = DIMs_map[ DIM_name ]["tolerance"] + ', ' + data_text
                         else:
-                            DIMs_map[ DIM_name ]["tolerance"] = data['text']
+                            DIMs_map[ DIM_name ]["tolerance"] = data_text
 
 
 
@@ -237,7 +238,11 @@ def Recognition( self, drawing_id, filename, drawing_path ):
                     values_cmd += "(GETDATE(), GETDATE(), '{0}', '{1}', '{2}', '{3}', '{4}', '{5}', 1, 0, 0)".format(view_id, DIM_name, DIM['encoded'], DIM['predict_encoded'], dimensioning, tolerance)
 
                 sql_cmd = insert_cmd + values_cmd
-                session.execute( text(sql_cmd) )
+                try:
+                    session.execute( text(sql_cmd) )
+                except:
+                    Logs.delay('danger', 'An error occurred during the insert process.')
+                    print('An error occurred during the insert process.')
 
 
         # FCFs image file
@@ -284,7 +289,11 @@ def Recognition( self, drawing_id, filename, drawing_path ):
 
                     values_cmd += "(GETDATE(), GETDATE(), {0}, '{1}', '{2}', '{3}', '{4}', '{5}')".format(view_id, FCF_name, encoded, symbol, tolerance, datum)
                 sql_cmd = insert_cmd + values_cmd
-                session.execute( text(sql_cmd) )
+                try:
+                    session.execute( text(sql_cmd) )
+                except:
+                    Logs.delay('danger', 'An error occurred during the insert process.')
+                    print('An error occurred during the insert process.')
 
 
         # Datums image file
@@ -323,15 +332,17 @@ def Recognition( self, drawing_id, filename, drawing_path ):
 
                     values_cmd += "(GETDATE(), GETDATE(), {0}, '{1}', '{2}', '{3}')".format(view_id, Datum_name, encoded, datum)
                 sql_cmd = insert_cmd + values_cmd
-                session.execute( text(sql_cmd) )
+                try:
+                    session.execute( text(sql_cmd) )
+                except:
+                    Logs.delay('danger', 'An error occurred during the insert process.')
+                    print('An error occurred during the insert process.')
 
         
         sql_cmd = "SELECT id, name FROM dimensionings WHERE view_id={}".format(view_id)
         result = session.execute( text(sql_cmd) )
         for res in result:
             DIMs_map[ res.name ]['id'] = res.id
-
-
 
 
     Logs.delay('info', 'Recongnize view -> DIM Completed.')

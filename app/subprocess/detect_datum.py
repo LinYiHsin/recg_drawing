@@ -76,7 +76,8 @@ def Tess_OCR( image ):
         if tmp_level == 5:
             for t in text:
                 TEXT_str += t
-
+                
+    TEXT_str.replace("'", "''")
     return TEXT_str
 
 def remove_the_blackborder( image ):

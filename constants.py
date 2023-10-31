@@ -3,7 +3,7 @@ import urllib
 
 # MSSQL
 databaseConfig = {
-    'driver': '{SQL Server}',
+    'driver': '{ODBC Driver 17 for SQL Server}',
     'host': '.xxx.xxx.xxx.xxx',
     'username': 'USERNAME',
     'password': 'PASSWORD',
